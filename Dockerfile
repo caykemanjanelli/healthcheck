@@ -1,12 +1,24 @@
-FROM maven:3.8.6-jdk-8-slim as base
-RUN apt-get update && apt-get upgrade -y
+# Layer de Dev (JDK para Desenvolver)
+FROM openjdk:17-jdk-alpine as base
 
-FROM base as dev
-# Verify git, needed tools installed
-RUN apt-get install -y git 
-#RUN apt-get install -y git-flow 
-RUN apt-get install -y openssh-client 
-#RUN apt-get install -y less 
-RUN apt-get install -y iproute2 
-RUN apt-get install -y procps 
-RUN apt-get install -y curl 
+RUN apk update && apk upgrade
+RUN apk add maven
+RUN apk add git
+
+
+FROM base as ci
+WORKDIR /app
+COPY . .
+
+FROM ci as builder
+WORKDIR /app
+RUN mvn package -Dmaven.test.skip=true
+
+# Layer de Shipment (Apenas JRE)
+FROM openjdk:11-ea-17-jre-slim
+WORKDIR /app
+COPY --from=builder /app/target/items.jar .
+# COPY --from=builder --chown=user:group /app/target/items.jar .
+ENTRYPOINT ["java","-jar", "/app/items.jar"]
+
+# DATABASE_URI
